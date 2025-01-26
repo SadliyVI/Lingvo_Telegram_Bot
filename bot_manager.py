@@ -1,7 +1,8 @@
 import configparser
 import random
 import telebot
-from telebot import types
+from telebot import types, State
+from telebot.states import StatesGroup
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
@@ -10,8 +11,6 @@ config.read('settings.ini')
 TOKEN = config['Tokens']['TOKEN']
 
 bot=telebot.TeleBot(TOKEN)
-
-data_set = {'user_id': '', 'translate_direction': '', 'current_word': '' }
 
 class Command:
     ADD_WORD = 'Добавить слово ➕'
@@ -23,8 +22,15 @@ class Command:
 class Labels:
     START_LABEL = 'Начинаем!🆕\nВыбери направление перевода:'
 
+class SessionDataSet():
+    current_word = ''
+    target_word = ''
+    other_words = []
+    used_words = []
+    translate_direction = ''
+
 def get_start_menu():
-    markup = types.InlineKeyboardMarkup(row_width=3)
+    markup = types.InlineKeyboardMarkup(row_width = 2)
     en_ru_btn = types.InlineKeyboardButton('EN ➡️ RU', callback_data =
     'en_ru_direction')
     ru_en_btn = types.InlineKeyboardButton('RU ➡️ EN', callback_data =
@@ -42,17 +48,17 @@ def get_select_dict_menu():
                                                callback_data='go_back_direction')
     return markup.add(base_dict, user_dict, backstate_btn)
 
-def get_translation_menu(target_word, other_words):
+def get_translation_menu():
     markup = types.ReplyKeyboardMarkup(row_width = 2)
-    target_word_btn = types.KeyboardButton(target_word)
-    other_word_btns = [types.KeyboardButton(word) for word in other_words]
+    target_word_btn = types.KeyboardButton(SessionDataSet.target_word)
+    other_word_btns = [types.KeyboardButton(word) for word in
+                       SessionDataSet.other_words]
     buttons = [target_word_btn] + other_word_btns
     random.shuffle(buttons)
     next_word_btn = types.KeyboardButton(Command.NEXT_WORD)
     delete_word_btn = types.KeyboardButton(Command.DELETE_WORD)
     add_word_btn = types.KeyboardButton(Command.ADD_WORD)
-    close_btn = types.InlineKeyboardButton(Command.END,
-                                           callback_data='end_lesson')
+    close_btn = types.InlineKeyboardButton(Command.END)
     buttons.extend([add_word_btn, delete_word_btn, next_word_btn, close_btn])
     return markup.add(*buttons)
 
@@ -60,40 +66,63 @@ def get_translation_menu(target_word, other_words):
 def start_command(message):
     bot.send_message(message.chat.id, Labels.START_LABEL,
                      reply_markup = get_start_menu())
-    data_set['user_id'] = message.from_user.id
+    # data_set['user_id'] = message.from_user.id
 
 @bot.callback_query_handler(func = lambda call:True)
 def callback_start_command(call):
     if call.message:
         if call.data == 'en_ru_direction':
-            data_set['translate_direction'] = 'en_ru_direction'
+            SessionDataSet.translate_direction = 'en_ru_direction'
             bot.edit_message_text(chat_id = call.message.chat.id,
                              message_id = call.message.message_id,
                              text = 'Вы выбрали EN ➡️ RU перевод.\n'
                                     'Выберите словарь для изучения:',
                              reply_markup = get_select_dict_menu())
         elif call.data == 'ru_en_direction':
-            data_set['translate_direction'] = 'ru_en_direction'
+            SessionDataSet.translate_direction = 'ru_en_direction'
             bot.edit_message_text(chat_id = call.message.chat.id,
                              message_id = call.message.message_id,
                              text = 'Вы выбрали RU ➡️ EN перевод\n'
                                     'Выберите словарь для изучения:',
                              reply_markup = get_select_dict_menu())
         elif call.data == 'go_back_direction':
-            bot.edit_message_text(chat_id=call.message.chat.id,
-                                  message_id=call.message.message_id,
+            bot.edit_message_text(chat_id = call.message.chat.id,
+                                  message_id = call.message.message_id,
                                   text = Labels.START_LABEL,
                                   reply_markup = get_start_menu())
         elif call.data == 'all_words':
-            data_set['current_word'] = 'one'
-            if data_set['translate_direction'] == 'en_ru_direction':
-                header_text = f'Translate word:\n➡️ {data_set['current_word']}'
+            SessionDataSet.current_word = 'one'
+            SessionDataSet.target_word = '1'
+            SessionDataSet.other_words = ['2', '3', '4']
+            SessionDataSet.used_words.append('1')
+            if SessionDataSet.translate_direction == 'en_ru_direction':
+                header_text = f'Translate word:\n👉{SessionDataSet.current_word}👈'
+                task_text = f'Choose a translation option:'
             else:
-                header_text = (f'Переведи слово:\n➡️'
-                               f' {data_set['current_word']}')
-            bot.send_message(call.message.chat.id, header_text,
-                             reply_markup = get_translation_menu('1',
-                                                    ['2', '3', '4']))
+                header_text = f'Переведи слово:\n👉{SessionDataSet.current_word}👈'
+                task_text = f'Выбери вариант перевода:'
+            bot.edit_message_text(chat_id = call.message.chat.id,
+                                  message_id = call.message.message_id,
+                                  text = header_text)
+            bot.send_message(call.message.chat.id, text = task_text,
+                         reply_markup = get_translation_menu())
+        elif call.data == 'my_words':
+            SessionDataSet.current_word = 'one'
+            SessionDataSet.target_word = '1'
+            SessionDataSet.other_words = ['2', '3', '4']
+            SessionDataSet.used_words.append('1')
+            if SessionDataSet.translate_direction == 'en_ru_direction':
+                header_text = f'Translate word:\n👉{SessionDataSet.current_word}👈'
+                task_text = f'Choose a translation option:'
+            else:
+                header_text = f'Переведи слово:\n👉{SessionDataSet.current_word}👈'
+                task_text = f'Выбери вариант перевода:'
+            bot.edit_message_text(chat_id = call.message.chat.id,
+                                  message_id = call.message.message_id,
+                                  text = header_text)
+            bot.send_message(call.message.chat.id, text = task_text,
+                         reply_markup = get_translation_menu())
+
 
 
 

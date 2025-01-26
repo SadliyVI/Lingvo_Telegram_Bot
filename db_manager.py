@@ -7,6 +7,7 @@ from models import (
                     User, RussianWord, EnglishWord, LearnedWord,
                     RussianEnglishAssociation
 )
+import random
 
 def create_engine():
     """
@@ -223,6 +224,21 @@ def get_user_by_username(username, session):
 
 def get_russian_word(ru_word, session):
     return session.query(RussianWord).filter(RussianWord.ru_word == ru_word).first()
+
+# def get_random_word(session, used_words, user_id):
+#     word_pair = []
+#     word_indexes = session.query(RussianWord.id).all()
+#     if word_indexes:
+#         used_word_ids = [learned_word.russian_word_id for learned_word in used_words]
+#         random_index = random.choice(
+#             [index for index in word_indexes if index[0] not in used_word_ids]
+#         )
+#
+#         return session.query(RussianWord.ru_word)random_index[0])
+#     else:
+#         return 'Словарь пустой, добавьте новое слово!'
+    # if word_indexes:
+    #     random_index = random.choice(word_indexes)[0]
 
 def get_english_word(en_word, session):
     return session.query(EnglishWord).filter(EnglishWord.en_word == en_word).first()
