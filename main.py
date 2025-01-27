@@ -40,7 +40,7 @@ if __name__ == "__main__":
                                    user_name = 333)
     session.add(new_learned_word)
 
-
+    dbm.get_learned_words()
     session.commit()
 
 
