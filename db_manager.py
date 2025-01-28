@@ -4,9 +4,11 @@ import sqlalchemy
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base
 from sqlalchemy.exc import IntegrityError
 from models import (
-                    User, RussianWord, EnglishWord, LearnedWord,
-                    RussianEnglishAssociation
+    User, RussianWord, EnglishWord, LearnedWord,
+    RussianEnglishAssociation
 )
+import random
+
 
 def create_engine():
     """
@@ -16,7 +18,7 @@ def create_engine():
     and uses it to create a SQLAlchemy engine for a PostgreSQL database.
     The database connection string is constructed using the provided 
     parameters.
-    
+
     Returns:
         sqlalchemy.engine.base.Engine: A SQLAlchemy engine instance
         configured for the specified PostgreSQL database.
@@ -37,6 +39,7 @@ def create_engine():
     engine = sqlalchemy.create_engine(DSN)
     return engine
 
+
 def create_session(engine):
     """
     Create and return a new SQLAlchemy session.
@@ -52,7 +55,7 @@ def create_session(engine):
     sqlalchemy.orm.session.Session: A new SQLAlchemy session bound to the
         provided engine.
     """
-    
+
     Session = sessionmaker(bind=engine)
     session = Session()
     return session
@@ -83,13 +86,13 @@ def download_data_from_json(session, path):
     - If a word pair already exists in the database, it prints a message in Russian.
     """
 
-    with open(path, encoding ='utf-8') as f:
+    with open(path, encoding='utf-8') as f:
         data = json.load(f)
     for item in data:
         model = item['model']
         fields = item['fields']
         if model == 'User':
-            user = User(username = fields['username'])
+            user = User(username=fields['username'])
             session.add(user)
             session.commit()
         elif model == 'Word':
@@ -101,24 +104,24 @@ def download_data_from_json(session, path):
                 print(a)
             if not rus_dict or all(fields['ru_word'] != r.ru_word for r in
                                    rus_dict):
-                rus_word = RussianWord(ru_word = fields['ru_word'],
-                                       user_name = fields['user_id'])
+                rus_word = RussianWord(ru_word=fields['ru_word'],
+                                       user_name=fields['user_id'])
 
                 if all(fields['en_word'] != e.en_word for e in eng_dict):
-                    eng_word = EnglishWord(en_word = fields['en_word'])
+                    eng_word = EnglishWord(en_word=fields['en_word'])
                     session.add_all([rus_word, eng_word])
                     session.commit()
                     word_association = RussianEnglishAssociation(
-                        russian_word_id = rus_word.id,
-                        english_word_id = eng_word.id)
+                        russian_word_id=rus_word.id,
+                        english_word_id=eng_word.id)
                     session.add(word_association)
                     session.commit()
                 else:
                     session.add(rus_word)
                     session.commit()
                     word_association = RussianEnglishAssociation(
-                        russian_word_id = rus_word.id,
-                        english_word_id = eng_word.id)
+                        russian_word_id=rus_word.id,
+                        english_word_id=eng_word.id)
                     session.add(word_association)
                     session.commit()
             else:
@@ -126,13 +129,14 @@ def download_data_from_json(session, path):
                     RussianEnglishAssociation).all()
                 for item in word_association_pair:
                     if (item.russian_word_id == rus_word.id and
-                        all(fields['en_word'] != e.en_word for e in eng_dict)):
-                        eng_word = EnglishWord(en_word = fields['en_word'])
+                            all(fields['en_word'] != e.en_word for e in
+                                eng_dict)):
+                        eng_word = EnglishWord(en_word=fields['en_word'])
                         session.add(eng_word)
                         session.commit()
                         word_association = RussianEnglishAssociation(
-                            russian_word_id = rus_word.id,
-                            english_word_id = eng_word.id)
+                            russian_word_id=rus_word.id,
+                            english_word_id=eng_word.id)
                         session.add(word_association)
                         session.commit()
                     else:
@@ -159,7 +163,7 @@ def create_user(username, session):
         with the same username already exists in the database.
     """
 
-    new_user = User(username = username)
+    new_user = User(username=username)
     session.add(new_user)
     try:
         session.commit()
@@ -170,7 +174,7 @@ def create_user(username, session):
 
 
 def create_russian_word(ru_word, user_name, session):
-    new_word = RussianWord(ru_word = ru_word, user_name = user_name)
+    new_word = RussianWord(ru_word=ru_word, user_name=user_name)
     session.add(new_word)
     try:
         session.commit()
@@ -179,8 +183,9 @@ def create_russian_word(ru_word, user_name, session):
         session.rollback()
         return None
 
+
 def create_english_word(en_word, session):
-    new_word = EnglishWord(en_word = en_word)
+    new_word = EnglishWord(en_word=en_word)
     session.add(new_word)
     try:
         session.commit()
@@ -188,11 +193,12 @@ def create_english_word(en_word, session):
     except IntegrityError:
         session.rollback()
         return None
+
 
 def create_word_association(russian_word_id, english_word_id, session):
     new_association = RussianEnglishAssociation(
-        russian_word_id = russian_word_id,
-        english_word_id = english_word_id)
+        russian_word_id=russian_word_id,
+        english_word_id=english_word_id)
     session.add(new_association)
     try:
         session.commit()
@@ -202,12 +208,11 @@ def create_word_association(russian_word_id, english_word_id, session):
         return None
 
 
-
 def mark_word_as_learned(russian_word_id, english_word_id, user_name, session):
     learned_word = LearnedWord(
-        russian_word_id = russian_word_id,
-        english_word_id = english_word_id,
-        user_name = user_name)
+        russian_word_id=russian_word_id,
+        english_word_id=english_word_id,
+        user_name=user_name)
     session.add(learned_word)
     try:
         session.commit()
@@ -216,16 +221,37 @@ def mark_word_as_learned(russian_word_id, english_word_id, user_name, session):
         session.rollback()
         return None
 
+
 # Read (Select) functions
 
 def get_user_by_username(username, session):
     return session.query(User).filter(User.username == username).first()
 
-def get_russian_word(ru_word, session):
-    return session.query(RussianWord).filter(RussianWord.ru_word == ru_word).first()
 
-def get_english_word(en_word, session):
-    return session.query(EnglishWord).filter(EnglishWord.en_word == en_word).first()
+def get_russian_word(ru_word_id, session):
+    return session.query(RussianWord).filter(
+        RussianWord.id == ru_word_id).first()
+
+
+# def get_random_word(session, used_words, user_id):
+#     word_pair = []
+#     word_indexes = session.query(RussianWord.id).all()
+#     if word_indexes:
+#         used_word_ids = [learned_word.russian_word_id for learned_word in used_words]
+#         random_index = random.choice(
+#             [index for index in word_indexes if index[0] not in used_word_ids]
+#         )
+#
+#         return session.query(RussianWord.ru_word)random_index[0])
+#     else:
+#         return 'Словарь пустой, добавьте новое слово!'
+# if word_indexes:
+#     random_index = random.choice(word_indexes)[0]
+
+def get_english_word(en_word_id, session):
+    return session.query(EnglishWord).filter(
+        EnglishWord.id == en_word_id).first()
+
 
 def get_word_association(russian_word_id, english_word_id, session):
     return session.query(RussianEnglishAssociation).filter(
@@ -233,8 +259,21 @@ def get_word_association(russian_word_id, english_word_id, session):
         RussianEnglishAssociation.english_word_id == english_word_id
     ).first()
 
+
+def get_english_word_id(session, russian_word_id):
+    association = session.query(RussianEnglishAssociation).filter(
+        RussianEnglishAssociation.russian_word_id == russian_word_id
+    ).first()
+    if association:
+        return association.english_word_id
+    else:
+        return None
+
+
 def get_learned_words(user_name, session):
-    return session.query(LearnedWord).filter(LearnedWord.user_name == user_name).all()
+    return session.query(LearnedWord).filter(LearnedWord.user_name ==
+                                             user_name).all()
+
 
 # Update functions
 
@@ -250,6 +289,7 @@ def update_russian_word(word_id, new_ru_word, session):
             return None
     return None
 
+
 def update_english_word(word_id, new_en_word, session):
     word = session.query(EnglishWord).filter(EnglishWord.id == word_id).first()
     if word:
@@ -262,6 +302,7 @@ def update_english_word(word_id, new_en_word, session):
             return None
     return None
 
+
 # Delete functions
 
 def delete_user(username, session):
@@ -272,6 +313,7 @@ def delete_user(username, session):
         return True
     return False
 
+
 def delete_russian_word(word_id, session):
     word = session.query(RussianWord).filter(RussianWord.id == word_id).first()
     if word:
@@ -280,6 +322,7 @@ def delete_russian_word(word_id, session):
         return True
     return False
 
+
 def delete_english_word(word_id, session):
     word = session.query(EnglishWord).filter(EnglishWord.id == word_id).first()
     if word:
@@ -287,6 +330,7 @@ def delete_english_word(word_id, session):
         session.commit()
         return True
     return False
+
 
 def delete_word_association(russian_word_id, english_word_id, session):
     association = session.query(RussianEnglishAssociation).filter(
@@ -298,6 +342,7 @@ def delete_word_association(russian_word_id, english_word_id, session):
         session.commit()
         return True
     return False
+
 
 def unmark_learned_word(russian_word_id, english_word_id, user_name, session):
     learned_word = session.query(LearnedWord).filter(
@@ -311,15 +356,88 @@ def unmark_learned_word(russian_word_id, english_word_id, user_name, session):
         return True
     return False
 
-def get_word_for_study(dictionary_type, translate_direction):
-    if dictionary_type == 'all_words':
-        if translate_direction == 'ru_en_direction':
-            pass
-        elif translate_direction == 'en_ru_direction':
-            pass
-    else:
-        if translate_direction == 'ru_en_direction':
-            pass
-        elif translate_direction == 'en_ru_direction':
-            pass
 
+# def get_word_for_study(dictionary_type, translate_direction, user_name,
+#                        session):
+#     word_set = []
+#     learned_words = get_learned_words(user_name, session)
+#     if dictionary_type == 'all_words':
+#         id_list = session.query(RussianWord.id).all()
+#         if learned_words:
+#             id_list = [id for id in id_list if id not in
+#                        [word.russian_word_id for word in
+#                         learned_words]]
+#             if translate_direction == 'ru_en_direction':
+#                 ru_word_id = random.choice(id_list)
+#                 word_set.append((get_russian_word(ru_word_id, session)).ru_word)
+#                 en_word_id = get_english_word_id(session, ru_word_id)
+#                 word_set.append((get_english_word(en_word_id, session)).en_word)
+#                 id_list.remove(ru_word_id)
+#                 other_words_ids = random.choices(id_list, k = 3)
+#                 for other_word_id in other_words_ids:
+#                     en_word_id = get_english_word_id(session, other_word_id)
+#                     word_set.append((get_english_word(en_word_id, session)).en_word)
+#             elif translate_direction == 'en_ru_direction':
+#                 ru_word_id = random.choice(id_list)
+#                 en_word_id = get_english_word_id(session, ru_word_id)
+#                 word_set.append(
+#                                (get_english_word(en_word_id, session)).en_word)
+#                 word_set.append(
+#                                (get_russian_word(ru_word_id,
+#                                                  session)).ru_word)
+#                 id_list.remove(ru_word_id)
+#                 other_words_ids = random.choices(id_list, k=3)
+#                 for other_word_id in other_words_ids:
+#                     word_set.append(
+#                         (get_russian_word(ru_word_id, session)).ru_word)
+#     else:
+#         id_list = session.query(RussianWord.id).filter(RussianWord.user_name
+#          == user_name).all()
+#         if translate_direction == 'ru_en_direction':
+#             pass
+#         elif translate_direction == 'en_ru_direction':
+#             pass
+#     return word_set
+
+
+def get_word_for_study(dictionary_type, translate_direction, user_name,
+                       session):
+    word_set = []
+    learned_words = get_learned_words(user_name, session)
+
+    if dictionary_type == 'all_words':
+        id_list = [id[0] for id in session.query(RussianWord.id).all()]
+    else:
+        id_list = [id[0] for id in session.query(RussianWord.id).filter(
+            RussianWord.user_name == user_name).all()]
+
+    if learned_words:
+        id_list = [id for id in id_list if
+                   id not in [word.russian_word_id for word in learned_words]]
+    if not id_list:
+        return word_set  # Возвращаем пустой список, если нет доступных слов
+
+    ru_word_id = random.choice(id_list)
+    en_word_id = get_english_word_id(session, ru_word_id)
+
+    if translate_direction == 'ru_en_direction':
+        word_set.append(get_russian_word(ru_word_id, session).ru_word)
+        word_set.append(get_english_word(en_word_id, session).en_word)
+
+        id_list.remove(ru_word_id)
+        other_words_ids = random.sample(id_list, k=min(3, len(id_list)))
+        for other_word_id in other_words_ids:
+            other_en_word_id = get_english_word_id(session, other_word_id)
+            word_set.append(
+                get_english_word(other_en_word_id, session).en_word)
+
+    elif translate_direction == 'en_ru_direction':
+        word_set.append(get_english_word(en_word_id, session).en_word)
+        word_set.append(get_russian_word(ru_word_id, session).ru_word)
+
+        id_list.remove(ru_word_id)
+        other_words_ids = random.sample(id_list, k = min(3, len(id_list)))
+        for other_word_id in other_words_ids:
+            word_set.append(get_russian_word(other_word_id, session).ru_word)
+
+    return word_set

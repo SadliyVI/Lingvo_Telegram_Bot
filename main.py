@@ -11,9 +11,9 @@ if __name__ == "__main__":
     path = 'files/base_dict.json'
     dbm.download_data_from_json(session, path)
 
-    dbm.create_user(session = session, username = 444)
+    dbm.create_user(session = session, username = 340225325)
 
-    dbm.create_russian_word('пиво', 444, session)
+    dbm.create_russian_word('пиво', 340225325, session)
     dbm.create_english_word('beer', session)
     dbm.create_word_association(26, 26, session)
 
@@ -36,15 +36,20 @@ if __name__ == "__main__":
 
     # session.add(rus_eng_assoc)
     # session.commit()
-    new_learned_word = LearnedWord(russian_word_id = 19 , english_word_id = 20,
-                                   user_name = 333)
-    session.add(new_learned_word)
+    new_learned_word = [
+                        LearnedWord(russian_word_id = 19 ,
+                                    english_word_id = 20,
+                                    user_name = 340225325),
+                        LearnedWord(russian_word_id = 14 ,
+                                    english_word_id = 15,
+                                    user_name = 340225325)
+    ]
+    session.add_all(new_learned_word)
 
-    dbm.get_learned_words()
+    learned_word = dbm.get_learned_words(user_name = 340225325, session = session)
+    # session.add(learned_word)
+    for c in learned_word:
+        print(c.russian_word_id)
+
     session.commit()
-
-
-
-
-
     session.close()
