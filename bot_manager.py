@@ -1,19 +1,25 @@
+import logging
 import db_manager as dbm
 import configparser
 import random
 import telebot
 from telebot import types, State
 from telebot.handler_backends import State, StatesGroup
+from telebot.storage import StateMemoryStorage
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, \
     ReplyKeyboardRemove
 
 from models import RussianWord, EnglishWord, RussianEnglishAssociation
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 config = configparser.ConfigParser()
 config.read('settings.ini')
 TOKEN = config['Tokens']['TOKEN']
 
-bot=telebot.TeleBot(TOKEN)
+state_storage = StateMemoryStorage()
+bot=telebot.TeleBot(TOKEN, state_storage = state_storage)
 
 engine = dbm.create_engine()
 session = dbm.create_session(engine)
@@ -80,7 +86,6 @@ def get_translation_menu():
 def start_command(message):
     bot.send_message(message.chat.id, Labels.START_LABEL,
                      reply_markup = get_start_menu())
-    # data_set['user_id'] = message.from_user.id
 
 @bot.callback_query_handler(func = lambda call:True)
 def callback_start_command(call):
@@ -126,29 +131,46 @@ def callback_start_command(call):
 
 @bot.message_handler(func = lambda message: message.text == Command.ADD_WORD)
 def handle_add_word(message):
-    chat_id = message.chat.id
-    bot.send_message(chat_id, "Введите русское слово:",
-                     reply_markup = ReplyKeyboardRemove())
-    bot.set_state(message.from_user.id, AddWordStates.waiting_for_russian, chat_id)
+    logger.info(f"Received message: {message.text}")
+    bot.set_state(message.chat.id,
+                  AddWordStates.waiting_for_russian,
+                  message.from_user.id
+                  )
+    logger.info(f"State set to: {AddWordStates.waiting_for_russian}")
+    logger.info(
+        f'User {message.from_user.id} started adding a word. Waiting for Russian word.')
+    bot.send_message(message.chat.id, 'Введите русское слово:',
+                     reply_markup = types.ReplyKeyboardRemove())
+    print(bot.get_state(message.from_user.id, message.chat.id))
 
-@bot.message_handler(state  = AddWordStates.waiting_for_russian)
+
+
+@bot.message_handler(state = AddWordStates.waiting_for_russian)
 def handle_russian_word(message):
+    logger.info(f"Received message: {message.text}")
     chat_id = message.chat.id
+    user_id = message.from_user.id
+    with bot.retrieve_data(user_id, chat_id) as data:
+        logger.info(f"Current state data: {data}")
     russian_word = message.text.lower()
-    bot.send_message(chat_id, "Теперь введите английский перевод:")
-    bot.set_state(message.from_user.id, AddWordStates.waiting_for_english, chat_id)
-    bot.add_data(message.from_user.id, chat_id, russian_word = russian_word)
+    bot.send_message(chat_id, 'Теперь введите английский перевод:')
+    bot.set_state(user_id, AddWordStates.waiting_for_english, chat_id)
+    with bot.retrieve_data(user_id, chat_id) as data:
+        data['russian_word'] = russian_word
+    logger.info(f'User {user_id} entered Russian word: {russian_word}. Waiting for English translation.')
 
-@bot.message_handler(state = AddWordStates.waiting_for_english)
+@bot.message_handler(state=AddWordStates.waiting_for_english)
 def handle_english_word(message):
     chat_id = message.chat.id
     user_id = message.from_user.id
     english_word = message.text.lower()
-    russian_word = bot.get_data(user_id, chat_id)['russian_word']
+
+    with bot.retrieve_data(user_id, chat_id) as data:
+        russian_word = data['russian_word']
 
     try:
         # Add words to the database
-        ru_word = RussianWord(ru_word = russian_word, user_name=user_id)
+        ru_word = RussianWord(ru_word=russian_word, user_name=user_id)
         en_word = EnglishWord(en_word=english_word)
         session.add_all([ru_word, en_word])
         session.flush()
@@ -162,15 +184,21 @@ def handle_english_word(message):
                                   f'успешно добавлено в словарь.')
     except Exception as e:
         session.rollback()
-        bot.send_message(chat_id, f"Произошла ошибка при добавлении слова: {str(e)}")
+        bot.send_message(chat_id,
+                         f'Произошла ошибка при добавлении слова: {str(e)}')
     finally:
         bot.delete_state(user_id, chat_id)
-        bot.send_message(chat_id, "Выберите следующее действие:", reply_markup=get_translation_menu())
+        bot.send_message(chat_id, 'Выберите следующее действие:',
+                         reply_markup=get_translation_menu())
+
+bot.register_message_handler(handle_russian_word, state=AddWordStates.waiting_for_russian, content_types=['text'])
+bot.register_message_handler(handle_english_word, state=AddWordStates.waiting_for_english, content_types=['text'])
+
 
 @bot.message_handler(func=lambda message: message.text == Command.DELETE_WORD)
 def handle_delete_word(message):
     chat_id = message.chat.id
-    bot.send_message(chat_id, "Введите слово для удаления (на русском или английском):", reply_markup=ReplyKeyboardRemove())
+    bot.send_message(chat_id, 'Введите слово для удаления (на русском или английском):', reply_markup=ReplyKeyboardRemove())
     bot.set_state(message.from_user.id, DeleteWordStates.waiting_for_word, chat_id)
 
 @bot.message_handler(state=DeleteWordStates.waiting_for_word)
@@ -189,134 +217,24 @@ def handle_word_to_delete(message):
             session.query(RussianEnglishAssociation).filter_by(russian_word_id=ru_word.id).delete()
             session.delete(ru_word)
             session.commit()
-            bot.send_message(chat_id, f"Слово '{word_to_delete}' и его переводы успешно удалены из словаря.")
+            bot.send_message(chat_id, f'Слово {word_to_delete} и его переводы успешно удалены из словаря.')
         elif en_word:
             # Delete the English word and its associations
             session.query(RussianEnglishAssociation).filter_by(english_word_id=en_word.id).delete()
             session.delete(en_word)
             session.commit()
-            bot.send_message(chat_id, f"Слово '{word_to_delete}' и его переводы успешно удалены из словаря.")
+            bot.send_message(chat_id, f'Слово {word_to_delete} и его переводы успешно удалены из словаря.')
         else:
-            bot.send_message(chat_id, f"Слово '{word_to_delete}' не найдено в словаре.")
+            bot.send_message(chat_id, f'Слово {word_to_delete} не найдено в словаре.')
     except Exception as e:
         session.rollback()
-        bot.send_message(chat_id, f"Произошла ошибка при удалении слова: {str(e)}")
+        bot.send_message(chat_id, f'Произошла ошибка при удалении слова: {str(e)}')
     finally:
         bot.delete_state(user_id, chat_id)
-        bot.send_message(chat_id, "Выберите следующее действие:", reply_markup=get_translation_menu())
+        bot.send_message(chat_id, 'Выберите следующее действие:', reply_markup=get_translation_menu())
 
 
 
 
-
-
-
-# @bot.message_handler(func = lambda message: True, content_types = 'text')
-# def select_dict_reply(message):
-#     if message.text == 'all_words':
-#             data_set['current_word'] = 'one'
-#             if data_set['translate_direction'] == 'en_ru_direction':
-#                 header_text = f'Translate word:\n➡️ {data_set['current_word']}'
-#             else:
-#                 header_text = (f'Переведи слово:\n➡️'
-#                                f' {data_set['current_word']}')
-#             bot.send_message(message.chat.id, header_text,
-#                              reply_markup = get_translation_menu('1',
-#                                                     ['2', '3', '4']))
-
-
-
-
-# @bot.message_handler(content_types = ['text'])
-# def translate_word(message):
-#     header_text = ''
-#     if data_set['translate_direction'] == 'en_ru_direction':
-#         header_text = 'Translate word: '
-#     else: header_text = 'Переведи слово: '
-#
-#     if message.text == 'all_words':
-#         bot.send_message(message.chat.id, header_text,
-#                          reply_markup = get_translation_menu('1',
-#                                                    ['2','3', '4']))
-
-
-    # original_word = ''
-    # target_word = ''
-    # first_word = ''
-    # second_word = ''
-    # third_word = ''
-    # other_words = [first_word, second_word, third_word]
-
-
-# @bot.callback_query_handler(func=lambda call: True)
-# def callback_query(call):
-#     if call.data == "button1":
-#         bot.answer_callback_query(call.id, "Вы нажали кнопку 1")
-#     elif call.data == "button2":
-#         bot.answer_callback_query(call.id, "Вы нажали кнопку 2")
-
-    # markup = types.ReplyKeyboardMarkup(row_width = 2)
-    # target_word_btn = types.KeyboardButton(target_word)
-    # other_word_btns = [types.KeyboardButton(word) for word in other_words]
-    # buttons = [target_word_btn] + other_word_btns
-    # random.shuffle(buttons)
-    # next_word_btn = types.KeyboardButton(Command.NEXT_WORD)
-    # delete_word_btn = types.KeyboardButton(Command.DELETE_WORD)
-    # add_word_btn = types.KeyboardButton(Command.ADD_WORD)
-    # buttons.extend([add_word_btn, delete_word_btn, next_word_btn,])
-    # markup.add(*buttons)
-
-    # bot.send_message(message.chat.id, f'Переведи слово:\n {rus_word}',
-    #                  reply_markup = markup)
-
-# @bot.message_handler(commands = ['start'])
-# def welcome(message):
-#     chat_id = message.chat.id
-#     keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard = True)
-#     button_support = telebot.types.KeyboardButton(text = 'Написать в '
-#                                                          'поддержку')
-#     keyboard.add(button_support)
-#     bot.send_message(chat_id,
-#                      f'Добро пожаловать в бота сбора обратной связи',
-#                      reply_markup = keyboard)
-
-# @bot.message_handler(commands = ['start'])
-# def start_command(message):
-# 	bot.send_message(message.chat.id,'Привет')
-
-# @bot.message_handler(commands = ['button'])
-# def button_command(message):
-#     chat_id = message.chat.id
-# 	keyboard = types.ReplyKeyboardMarkup(resize_keyboard = True)
-# 	button_support = types.KeyboardButton('Начать')
-#     keyboard.add(button_support)
-#     bot.send_message(chat_id,'Выберите что вам надо',
-#                     reply_markup = keyboard)
-# def start_markup():
-#     markup = InlineKeyboardMarkup()
-#     markup.row_width = 1
-#     markup.add(InlineKeyboardButton("Старт", callback_data="start_command"))
-#     return markup
-#
-# @bot.message_handler(commands=['start'])
-# def start(message):
-#     bot.reply_to(message, "Нажмите кнопку 'Старт' для начала:", reply_markup=start_markup())
-#
-# @bot.callback_query_handler(func=lambda call: True)
-# def callback_query(call):
-#     if call.data == "start_command":
-#         bot.answer_callback_query(call.id, "Выполняется команда /start")
-#         bot.send_message(call.message.chat.id, "Вы нажали кнопку Старт! Бот запущен.")
-# @bot.message_handler(commands=['start'])
-# def welcome(message):
-#     chat_id = message.chat.id
-#     keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-#     button_support = telebot.types.KeyboardButton(text='Написать в поддержку')
-#     keyboard.add(button_support)
-#     bot.send_message(chat_id,
-#                      'Добро пожаловать в бота сбора обратной связи',
-#                      reply_markup = keyboard)
-
-# bot.infinity_polling()
 if __name__ == '__main__':
     bot.polling(none_stop=True)
