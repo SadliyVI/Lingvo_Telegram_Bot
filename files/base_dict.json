@@ -30,6 +30,8 @@
   {"model": "Word", "fields": {"ru_word": "вилка", "user_id": 0, "en_word": "fork"}},
   {"model": "Word", "fields": {"ru_word": "развилка дороги", "user_id": 0, "en_word": "fork"}},
   {"model": "Word", "fields": {"ru_word": "мир", "user_id": 0, "en_word": "world"}},
-  {"model": "Word", "fields": {"ru_word": "мир", "user_id": 0, "en_word": "peace"}}
-
+  {"model": "Word", "fields": {"ru_word": "мир", "user_id": 0, "en_word": "peace"}},
+  {"model": "Word", "fields": {"ru_word": "пиво", "user_id": 0, "en_word": "beer"}},
+  {"model": "Word", "fields": {"ru_word": "пиво", "user_id": 0, "en_word": "beer"}},
+  {"model": "Word", "fields": {"ru_word": "пиво", "user_id": 340223666, "en_word": "beer"}}
 ]
