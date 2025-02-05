@@ -175,7 +175,7 @@ def callback_all_commands(call):
         word_list = dbm.get_word_for_study(call.data,
                                            SessionDataSet.translate_direction,
                                            user_id, session)
-        if len([word for word in word_list if word]) < 5:
+        if len(word_list) < 5:
             notification = ('Недостаточно слов в словаре. Пожалуйста, '
                             'добавьте больше слов для изучения.')
             bot.answer_callback_query(call.id, text = notification,
