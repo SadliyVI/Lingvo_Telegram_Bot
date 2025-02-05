@@ -195,6 +195,7 @@ def callback_all_commands(call):
                          reply_markup = get_translation_menu())
 
     if call.data == 'confirm':
+        clear_choice_btn()
         success, message_text = reset_users_progress(call.from_user.id,
                                                      session)
         bot.answer_callback_query(call.id, text = message_text)
@@ -208,6 +209,7 @@ def callback_all_commands(call):
                              text = Labels.NEXT_ACTION,
                              reply_markup = get_translation_menu())
     elif call.data == 'cancel':
+        clear_choice_btn()
         bot.answer_callback_query(call.id,
                                   text = 'Сброс прогресса отменен!')
         bot.edit_message_text(
@@ -219,6 +221,7 @@ def callback_all_commands(call):
                          text = Labels.NEXT_ACTION,
                          reply_markup = get_translation_menu())
     if call.data == 'save':
+        clear_choice_btn()
         message_text = (f'Слово успешно сохранено в изученных!\n'
                         f'{Labels.NEXT_ACTION}')
         bot.answer_callback_query(call.id)
@@ -242,6 +245,7 @@ def callback_all_commands(call):
                              'Ошибка сохранения!',
                              reply_markup = get_translation_menu())
     elif call.data == 'cancel_save':
+        clear_choice_btn()
         bot.answer_callback_query(call.id)
         bot.edit_message_text(
             chat_id=call.message.chat.id,
@@ -261,6 +265,13 @@ def callback_all_commands(call):
                               text = 'До новых встреч!')
 
     bot.answer_callback_query(call.id)
+
+
+def clear_choice_btn():
+    SessionDataSet.current_word = ''
+    SessionDataSet.target_word = ''
+    SessionDataSet.other_words = []
+
 
 @bot.message_handler(func = lambda message: message.text == Command.ADD_WORD)
 def handle_add_word(message):
