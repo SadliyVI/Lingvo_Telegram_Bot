@@ -185,7 +185,7 @@ def callback_all_commands(call):
          *SessionDataSet.other_words) = word_list
         SessionDataSet.used_words.append(SessionDataSet.current_word)
         is_en_ru = SessionDataSet.translate_direction == 'en_ru_direction'
-        header_text = (f'{'Translate word:' if is_en_ru else 'Переведи слово'} :\n'
+        header_text = (f'{'Translate word' if is_en_ru else 'Переведи слово'} :\n'
                        f'👉{SessionDataSet.current_word}👈')
         task_text = f'{'Choose a translation option' if is_en_ru else 
                        'Выбери вариант перевода'}:'
@@ -395,7 +395,7 @@ def handle_word_to_delete(message):
                                       f'не найдено в словаре.')
     except Exception as e:
         session.rollback()
-        bot.send_message(chat_id, f'Произошла ошибка при удалении слова: {str(e)}')
+        bot.send_message(chat_id, f'Произошла ошибка при удалении слова!')
     finally:
         bot.send_message(chat_id, text = Labels.NEXT_ACTION,
                          reply_markup = get_translation_menu())
@@ -443,8 +443,8 @@ def handle_translation_choice(message):
             SessionDataSet.correct_answers.append(SessionDataSet.current_word)
         phrase = random.choice(Labels.CORRECT_PHRASES)
         sticker_id = random.choice(Stickers.CORRECT_STICKERS)
-        bot.send_sticker(chat_id, sticker_id)
         bot.send_message(chat_id, phrase)
+        bot.send_sticker(chat_id, sticker_id)
         bot.send_message(message.chat.id,
                          'Сохранить слово в изученных?',
                          reply_markup = create_saving_keyboard())
@@ -459,11 +459,11 @@ def handle_translation_choice(message):
         if SessionDataSet.translate_direction == 'ru_en_direction':
             bot.send_message(chat_id,
                          f'Попробуйте еще раз. Переведите слово '
-                             f'{SessionDataSet.current_word}')
+                             f'👉{SessionDataSet.current_word}👈')
         else:
             bot.send_message(chat_id,
                              f'Try again. Translate word: '
-                             f'{SessionDataSet.current_word}')
+                             f'👉{SessionDataSet.current_word}👈')
 
         if (SessionDataSet.current_word_attempts >= 3 or
                 chosen_word == SessionDataSet.target_word):
@@ -542,7 +542,7 @@ def handle_end_lesson(message):
     SessionDataSet.target_word = ''
     SessionDataSet.other_words.clear()
 
-@bot.message_handler(commands=['help'])
+@bot.message_handler(commands = ['help'])
 def help_command(message):
     help_text = (
         '🤖 Инструкция по работе с ботом:\n\n'
