@@ -80,7 +80,6 @@ def download_data_from_json(session, path, user_name):
                       f'уже есть в словаре пользователя c ID '
                       f'-{user_id}-!')
 
-
 def create_user(username, session):
     all_users = session.query(User.username).all()
     if all(username != user.username for user in all_users):
@@ -267,7 +266,6 @@ def get_word_for_study(dictionary_type, translate_direction, user_name,
     learned_words = get_learned_words(user_name, session)
     learned_word_pairs = set((lw.russian_word_id, lw.english_word_id)
                               for lw in learned_words)
-
     if dictionary_type == 'all_words':
         available_words = session.query(RussianEnglishAssociation).all()
     else:
@@ -276,30 +274,23 @@ def get_word_for_study(dictionary_type, translate_direction, user_name,
 
     available_words = [w for w in available_words if (
     w.russian_word_id, w.english_word_id) not in learned_word_pairs]
-
     if not available_words:
-        return word_set  # Return empty list if no available words
-
+        return word_set
     chosen_pair = random.choice(available_words)
     russian_word = session.query(RussianWord).get(chosen_pair.russian_word_id)
     english_word = session.query(EnglishWord).get(chosen_pair.english_word_id)
-
     if translate_direction == 'ru_en_direction':
         word_set = [russian_word.ru_word, english_word.en_word]
-        # Get 3 other random English words
         other_english_words = session.query(EnglishWord).filter(
             EnglishWord.id != english_word.id).order_by(
             func.random()).limit(3).all()
         word_set.extend([w.en_word for w in other_english_words])
     elif translate_direction == 'en_ru_direction':
         word_set = [english_word.en_word, russian_word.ru_word]
-        # Get 3 other random Russian words
         other_russian_words = session.query(RussianWord).filter(
             RussianWord.id != russian_word.id).order_by(
             func.random()).limit(3).all()
         word_set.extend([w.ru_word for w in other_russian_words])
-
-    # Shuffle the last 4 elements (correct answer + 3 random words)
     random.shuffle(word_set[1:])
 
     return word_set
