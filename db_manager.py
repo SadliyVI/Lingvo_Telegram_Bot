@@ -262,7 +262,7 @@ def get_word_for_study(dictionary_type, translate_direction, user_name,
     word_set = []
     user = session.query(User).filter(User.username == user_name).first()
     if not user:
-            return word_set
+        return word_set
     learned_words = get_learned_words(user_name, session)
     learned_word_pairs = set((lw.russian_word_id, lw.english_word_id)
                               for lw in learned_words)

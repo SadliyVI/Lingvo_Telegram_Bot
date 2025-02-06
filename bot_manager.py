@@ -177,7 +177,9 @@ def callback_all_commands(call):
                                            user_id, session)
         if len(word_list) < 5:
             notification = ('Недостаточно слов в словаре. Пожалуйста, '
-                            'добавьте больше слов для изучения.')
+                            'добавьте больше слов для изучения или сбросьте '
+                            'прогресс изучения используя команду '
+                            '/reset_progress')
             bot.answer_callback_query(call.id, text = notification,
                                       show_alert = True)
             return
@@ -501,16 +503,12 @@ def handle_next_word(message):
     if len(word_list) < 5:
         bot.send_message(chat_id,
                          'Недостаточно слов в словаре. Пожалуйста, '
-                         'добавьте больше слов для изучения.')
+                         'добавьте больше слов для изучения или сбросьте '
+                         'прогресс изучения используя команду /reset_progress')
         return
-    new_words = [word for word in word_list if
-                 word not in SessionDataSet.used_words]
-    if not new_words:
-        SessionDataSet.used_words = []
-        new_words = word_list
 
     (SessionDataSet.current_word, SessionDataSet.target_word,
-     *SessionDataSet.other_words) = new_words
+     *SessionDataSet.other_words) = word_list
     SessionDataSet.used_words.append(SessionDataSet.current_word)
 
     is_en_ru = SessionDataSet.translate_direction == 'en_ru_direction'
