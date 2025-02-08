@@ -21,7 +21,7 @@ class User(Base):
     """
     __tablename__ = 'user'
     id = sq.Column(sq.Integer, primary_key = True)
-    username = sq.Column(sq.Integer, unique = True, nullable = False)
+    username = sq.Column(sq.BigInteger, unique = True, nullable = False)
 
     associations = relationship('RussianEnglishAssociation',
                                  back_populates = 'user',
